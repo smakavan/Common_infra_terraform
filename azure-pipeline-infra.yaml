@@ -1,0 +1,48 @@
+trigger: none
+
+pool:
+  name: "Local-Linux"		
+
+variables:
+  azureServiceConnection: '2037d4e0-22e8-4b5c-85ae-2e6f1f795ecd'
+
+steps:
+- task: TerraformTask@5
+  displayName: 'Terraform : init'
+  inputs:
+    command: init
+    environmentServiceNameAzureRM: $(azureServiceConnection)
+    backendType: 'azurerm'
+    backendServiceArm: $(azureServiceConnection)
+    backendAzureRmResourceGroupName: 'krishna-kiran'        
+    backendAzureRmStorageAccountName: 'tfstateaksacr'  
+    backendAzureRmContainerName: 'aksacrtfstate'     
+    backendAzureRmKey: 'teransi.terraform.tfstate'              
+
+- task: TerraformTask@5
+  displayName: 'Terraform : plan'
+  inputs:
+    command: plan
+    environmentServiceNameAzureRM: $(azureServiceConnection)
+
+- task: TerraformTask@5
+  displayName: 'Terraform : apply'
+  inputs:
+    command: apply
+    environmentServiceNameAzureRM: $(azureServiceConnection)
+    autoApprove: true
+	
+- task: AzureCLI@2
+  inputs:
+    azureSubscription: 'Your-Service-Connection'  # Replace with your actual service connection name
+    scriptType: 'bash'
+    scriptLocation: 'inlineScript'
+    inlineScript: |
+      az vm extension set \
+        --resource-group Java-Reac-Project \         # Replace with your actual RG
+        --vm-name ProjectVM \                           # Replace with your VM name
+        --name customScript \
+        --publisher Microsoft.Azure.Extensions \
+        --settings '{
+          "commandToExecute": "sudo apt-get update -y && sudo apt-get install -y software-properties-common && sudo add-apt-repository --yes --update ppa:ansible/ansible && sudo apt-get install -y ansible"
+        }'
