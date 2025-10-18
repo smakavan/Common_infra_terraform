@@ -16,6 +16,11 @@ provider "azurerm" {
   subscription_id = "4733385e-ac73-405b-8349-e777e3a42950"
 }
 
+terraform {
+  backend "azurerm" {
+  }
+}
+
 # Create a resource group
 resource "azurerm_resource_group" "example" {
   name     = var.rgname
