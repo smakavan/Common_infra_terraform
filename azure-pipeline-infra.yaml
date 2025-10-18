@@ -1,7 +1,7 @@
 trigger: none
 
 pool:
-  name: "Local-Linux"		
+  name: "Sachin_agent"
 
 variables:
   azureServiceConnection: '4733385e-ac73-405b-8349-e777e3a42950'
@@ -14,10 +14,10 @@ steps:
     environmentServiceNameAzureRM: $(azureServiceConnection)
     backendType: 'azurerm'
     backendServiceArm: $(azureServiceConnection)
-    backendAzureRmResourceGroupName: 'krishna-kiran'        
-    backendAzureRmStorageAccountName: 'tfstateaksacr'  
-    backendAzureRmContainerName: 'aksacrtfstate'     
-    backendAzureRmKey: 'teransi.terraform.tfstate'              
+    backendAzureRmResourceGroupName: 'krishna-kiran'
+    backendAzureRmStorageAccountName: 'tfstateaksacr'
+    backendAzureRmContainerName: 'aksacrtfstate'
+    backendAzureRmKey: 'teransi.terraform.tfstate'
 
 - task: TerraformTask@5
   displayName: 'Terraform : plan'
@@ -31,7 +31,7 @@ steps:
     command: apply
     environmentServiceNameAzureRM: $(azureServiceConnection)
     autoApprove: true
-	
+    
 - task: AzureCLI@2
   inputs:
     azureSubscription: '4733385e-ac73-405b-8349-e777e3a42950'  # Replace with your actual service connection name
