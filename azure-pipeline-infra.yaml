@@ -59,6 +59,7 @@ stages:
   - job: Install_Ansible
     displayName: "Use Azure CLI to install Ansible"
     steps:
+    - checkout: none    # prevent unnecessary git reset or workspace cleanup
     - task: AzureCLI@2
       displayName: "Install Ansible via VM Extension"
       inputs:
