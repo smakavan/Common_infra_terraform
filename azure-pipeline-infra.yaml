@@ -4,7 +4,7 @@ pool:
   name: "Local-Linux"		
 
 variables:
-  azureServiceConnection: '2037d4e0-22e8-4b5c-85ae-2e6f1f795ecd'
+  azureServiceConnection: '4733385e-ac73-405b-8349-e777e3a42950'
 
 steps:
 - task: TerraformTask@5
@@ -34,7 +34,7 @@ steps:
 	
 - task: AzureCLI@2
   inputs:
-    azureSubscription: 'Your-Service-Connection'  # Replace with your actual service connection name
+    azureSubscription: '4733385e-ac73-405b-8349-e777e3a42950'  # Replace with your actual service connection name
     scriptType: 'bash'
     scriptLocation: 'inlineScript'
     inlineScript: |
