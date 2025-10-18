@@ -6,7 +6,7 @@ pool:
 
 # Global variables
 variables:
-  azureServiceConnection: '4733385e-ac73-405b-8349-e777e3a42950'
+  azureServiceConnection: 'krishan-kiran-sc'
   resourceGroup: 'Java-Reac-Project'
   vmName: 'ProjectVM'
   storageAccount: 'tfstateaksacr'
