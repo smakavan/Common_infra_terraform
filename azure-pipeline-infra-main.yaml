@@ -98,7 +98,7 @@ stages:
           PUBLIC_IP=$(az vm show -d -g $(resourceGroup) -n $(vmName) --query publicIps -o tsv)
 
           # Copy playbook to VM
-          scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ansible/ansible-setup-tools.yml azureuser@$PUBLIC_IP:/tmp/ansible-setup-tools.yml
+          scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ansible-setup-tools.yml azureuser@$PUBLIC_IP:/tmp/ansible-setup-tools.yml
 
           # Run playbook remotely
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa azureuser@$PUBLIC_IP "sudo ansible-playbook /tmp/ansible-setup-tools.yml"
