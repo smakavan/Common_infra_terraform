@@ -13,9 +13,8 @@ variables:
   containerName: 'aksacrtfstate'
   tfstateKey: 'teransi.terraform.tfstate'
 
-# -----------------------
 # STAGE 1: TERRAFORM DEPLOYMENT
-# -----------------------
+
 stages:
 - stage: Terraform_Deploy
   displayName: "Terraform Infrastructure Deployment"
@@ -48,9 +47,8 @@ stages:
         environmentServiceNameAzureRM: $(azureServiceConnection)
         autoApprove: true
 
-# -----------------------
 # STAGE 2: CONFIGURE VM WITH ANSIBLE
-# -----------------------
+
 - stage: Configure_VM
   displayName: "Install Ansible on Azure VM"
   dependsOn: Terraform_Deploy
@@ -75,3 +73,32 @@ stages:
             --settings '{
               "commandToExecute": "sudo apt-get update -y && sudo apt-get install -y software-properties-common && sudo add-apt-repository --yes --update ppa:ansible/ansible && sudo apt-get install -y ansible"
             }'
+
+# STAGE 3: CONFIGURE TOOLS USING ANSIBLE
+
+- stage: Configure_Tools
+  displayName: "Install Java, Maven, npm, Docker, Terraform and sonarQube via Ansible"
+  dependsOn: Configure_VM
+  condition: succeeded()
+
+  jobs:
+  - job: Run_Playbook
+    displayName: "Execute Ansible Playbook on VM"
+    steps:
+    - checkout: none
+
+    - task: AzureCLI@2
+      displayName: "Run Ansible Playbook on VM"
+      inputs:
+        azureSubscription: $(azureServiceConnection)
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          # Get VM public IP
+          PUBLIC_IP=$(az vm show -d -g $(resourceGroup) -n $(vmName) --query publicIps -o tsv)
+
+          # Copy playbook to VM
+          scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ansible/ansible-setup-tools.yml azureuser@$PUBLIC_IP:/tmp/ansible-setup-tools.yml
+
+          # Run playbook remotely
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa azureuser@$PUBLIC_IP "sudo ansible-playbook /tmp/ansible-setup-tools.yml"
