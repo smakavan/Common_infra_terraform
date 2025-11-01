@@ -1,0 +1,122 @@
+---
+- name: Install Java, Maven, NPM, Docker, Terraform, and SonarQube
+  hosts: localhost
+  become: yes
+
+  tasks:
+    - name: Update apt packages
+      apt:
+        update_cache: yes
+
+    - name: Install Java
+      apt:
+        name: openjdk-17-jdk
+        state: present
+        update_cache: yes
+
+    - name: Install Maven
+      apt:
+        name: maven
+        state: present
+
+    - name: Install npm
+      apt:
+        name: npm
+        state: present
+
+    - name: Install Docker
+      apt:
+        name: docker.io
+        state: present
+
+    - name: Install dependencies for required tools
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - gnupg
+          - curl
+          - lsb-release
+        state: present
+        update_cache: yes
+
+    - name: Enable and start Docker
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    # Install Azure CLI
+
+    - name: Import Microsoft GPG key
+      shell: |
+        curl -sL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/microsoft.gpg > /dev/null
+      args:
+        executable: /bin/bash
+
+    - name: Add Azure CLI repository
+      shell: |
+        echo "deb [arch=amd64] https://packages.microsoft.com/repos/azure-cli/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/azure-cli.list
+      args:
+        executable: /bin/bash
+
+    - name: Install Azure CLI
+      apt:
+        name: azure-cli
+        state: present
+        update_cache: yes
+
+
+    # Install Kubernetes tools
+
+    - name: Add Kubernetes apt repository key
+      shell: |
+        curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+      args:
+        executable: /bin/bash
+
+    - name: Add Kubernetes repository
+      shell: |
+        echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+      args:
+        executable: /bin/bash
+
+    - name: Install kubelet, kubeadm, and kubectl
+      apt:
+        name:
+          - kubelet
+          - kubeadm
+          - kubectl
+        state: present
+        update_cache: yes
+
+    - name: Enable kubelet service
+      systemd:
+        name: kubelet
+        enabled: yes
+
+    - name: Install Terraform
+      shell: |
+        wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+        echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+        sudo apt update && sudo apt install terraform -y
+      args:
+        executable: /bin/bash
+
+
+    # SonarQube setup
+   
+    - name: Pull SonarQube Docker image
+      community.docker.docker_image:
+        name: sonarqube
+        tag: latest
+        source: pull
+
+    - name: Run SonarQube container
+      community.docker.docker_container:
+        name: sonarqube
+        image: sonarqube:latest
+        state: started
+        restart_policy: always
+        ports:
+          - "9000:9000"

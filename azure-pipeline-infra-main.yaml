@@ -1,0 +1,104 @@
+trigger: none
+
+# Define the build agent pool
+pool:
+  name: "Sachin_agent"
+
+# Global variables
+variables:
+  azureServiceConnection: 'krishan-kiran-sc'
+  resourceGroup: 'Java-Reac-Project'
+  vmName: 'ProjectVM'
+  storageAccount: 'tfstateaksacr'
+  containerName: 'aksacrtfstate'
+  tfstateKey: 'teransi.terraform.tfstate'
+
+# STAGE 1: TERRAFORM DEPLOYMENT
+
+stages:
+- stage: Terraform_Deploy
+  displayName: "Terraform Infrastructure Deployment"
+  jobs:
+  - job: Terraform
+    displayName: "Run Terraform Tasks"
+    steps:
+    - task: TerraformTask@5
+      displayName: 'Terraform : init'
+      inputs:
+        command: init
+        environmentServiceNameAzureRM: $(azureServiceConnection)
+        backendType: 'azurerm'
+        backendServiceArm: $(azureServiceConnection)
+        backendAzureRmResourceGroupName: 'krishna-kiran'
+        backendAzureRmStorageAccountName: $(storageAccount)
+        backendAzureRmContainerName: $(containerName)
+        backendAzureRmKey: $(tfstateKey)
+
+    - task: TerraformTask@5
+      displayName: 'Terraform : plan'
+      inputs:
+        command: plan
+        environmentServiceNameAzureRM: $(azureServiceConnection)
+
+    - task: TerraformTask@5
+      displayName: 'Terraform : apply'
+      inputs:
+        command: apply
+        environmentServiceNameAzureRM: $(azureServiceConnection)
+        autoApprove: true
+
+# STAGE 2: CONFIGURE VM WITH ANSIBLE
+
+- stage: Configure_VM
+  displayName: "Install Ansible on Azure VM"
+  dependsOn: Terraform_Deploy
+  condition: succeeded()   # Run only if Terraform succeeded
+  jobs:
+  - job: Install_Ansible
+    displayName: "Use Azure CLI to install Ansible"
+    steps:
+    - checkout: none    # prevent unnecessary git reset or workspace cleanup
+    - task: AzureCLI@2
+      displayName: "Install Ansible via VM Extension"
+      inputs:
+        azureSubscription: $(azureServiceConnection)  # Service connection, not subscription ID
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          az vm extension set \
+            --resource-group $(resourceGroup) \
+            --vm-name $(vmName) \
+            --name customScript \
+            --publisher Microsoft.Azure.Extensions \
+            --settings '{
+              "commandToExecute": "sudo apt-get update -y && sudo apt-get install -y software-properties-common && sudo add-apt-repository --yes --update ppa:ansible/ansible && sudo apt-get install -y ansible"
+            }'
+
+# STAGE 3: CONFIGURE TOOLS USING ANSIBLE
+
+- stage: Configure_Tools
+  displayName: "Install Java, Maven, npm, Docker, Terraform and sonarQube via Ansible"
+  dependsOn: Configure_VM
+  condition: succeeded()
+
+  jobs:
+  - job: Run_Playbook
+    displayName: "Execute Ansible Playbook on VM"
+    steps:
+    - checkout: none
+
+    - task: AzureCLI@2
+      displayName: "Run Ansible Playbook on VM"
+      inputs:
+        azureSubscription: $(azureServiceConnection)
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          # Get VM public IP
+          PUBLIC_IP=$(az vm show -d -g $(resourceGroup) -n $(vmName) --query publicIps -o tsv)
+
+          # Copy playbook to VM
+          scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ansible-setup-tools.yml azureuser@$PUBLIC_IP:/tmp/ansible-setup-tools.yml
+
+          # Run playbook remotely
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa azureuser@$PUBLIC_IP "sudo ansible-playbook /tmp/ansible-setup-tools.yml"
